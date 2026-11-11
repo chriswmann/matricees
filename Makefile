@@ -1,6 +1,7 @@
-CFLAGS = -Wall -Wextra
-LDFLAGS =
-LDLIBS =
+CPPFLAGS ?=
+CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+LDFLAGS ?=
+LDLIBS ?=
 
 NAME = main
 SRC = src
@@ -23,15 +24,17 @@ $(BIN)/%: $(OBJ)/%.o $(LIB_OBJS)
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
+
 $(OBJ)/%.o: $(SRC)/%.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $< -c -MMD -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 run: $(EXE)
 	@$(EXE)
 
 hot:
-	@find $(SRC) -type f | entr -c make run
+	@find $(SRC) -type f | entr -c $(MAKE) run
+
 
 clean:
 	@rm -rf $(BIN) $(OBJ)
