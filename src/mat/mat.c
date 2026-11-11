@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+MatStatusArray mat_status_array_init(void) {
+  return (MatStatusArray){.capacity = MAT_MAX_ERRORS};
+}
+
 static MatStatusKind mat_element_count(uint32_t rows, uint32_t cols,
                                        size_t *count) {
 /*
@@ -72,83 +76,74 @@ MatStatusKind mat_init(Mat *out, uint32_t rows, uint32_t cols) {
 }
 
 void mat_destroy(Mat *m) {
+  if (m == NULL)
+    return;
   free(m->data);
   *m = (Mat){0};
 }
 
-MatStatusArray mat_mul(Mat *a, Mat *b, Mat *out) {
-  MatStatusArray mat_statuses = {0};
+/* statuses must be a non-NULL, empty status array. */
+void mat_mul(Mat *a, Mat *b, Mat *out, MatStatusArray *statuses) {
 
   /*
    * Validate each pointer before accessing its data field.
    */
-  if (a == NULL)
-    append_status(&mat_statuses, MAT_ERR_ALLOCATION,
-                  "mat_mul a pointer is NULL");
+  if (a == NULL || a->data == NULL)
+    append_status(statuses, MAT_ERR_ARGUMENT,
+                  "mat_mul a or its data pointer is NULL");
 
-  if (a->data == NULL)
-    append_status(&mat_statuses, MAT_ERR_ARGUMENT,
-                  "mat_mul a data pointer is NULL");
+  if (b == NULL || b->data == NULL)
+    append_status(statuses, MAT_ERR_ARGUMENT,
+                  "mat_mul b or its data pointer is NULL");
 
-  if (b == NULL)
-    append_status(&mat_statuses, MAT_ERR_ARGUMENT, "mat_mul b pointer is NULL");
+  if (out == NULL || out->data == NULL)
+    append_status(statuses, MAT_ERR_ARGUMENT,
+                  "mat_mul out or its data pointer is NULL");
 
-  if (b->data == NULL)
-    append_status(&mat_statuses, MAT_ERR_ARGUMENT,
-                  "mat_mul b data pointer is NULL");
-
-  if (out == NULL)
-    append_status(&mat_statuses, MAT_ERR_ARGUMENT,
-                  "mat_mul out pointer is NULL");
-
-  if (out->data == NULL)
-    append_status(&mat_statuses, MAT_ERR_ARGUMENT,
-                  "mat_mul out data pointer is NULL");
-
-  if (mat_statuses.size > 0)
-    return mat_statuses;
+  if (statuses->size > 0)
+    return;
 
   if (a->cols != b->rows)
-    append_status(&mat_statuses, MAT_ERR_DIMENSIONS,
+    append_status(statuses, MAT_ERR_DIMENSIONS,
                   "mat_mul a's columns must equal b's rows");
 
   if (out->rows != a->rows)
-    append_status(&mat_statuses, MAT_ERR_DIMENSIONS,
+    append_status(statuses, MAT_ERR_DIMENSIONS,
                   "mat_mul out's rows must equal a's rows");
 
   if (out->cols != b->cols)
-    append_status(&mat_statuses, MAT_ERR_DIMENSIONS,
+    append_status(statuses, MAT_ERR_DIMENSIONS,
                   "mat_mul out's cols must equal b's cols");
 
-  if (mat_statuses.size > 0)
-    return mat_statuses;
+  if (statuses->size > 0)
+    return;
 
   size_t count = 0;
 
   MatStatusKind status = mat_element_count(a->rows, a->cols, &count);
   if (status != MAT_OK)
-    append_status(&mat_statuses, status, "mat_mul's a's size overflows");
+    append_status(statuses, status, "mat_mul's a's size overflows");
 
   status = mat_element_count(b->rows, b->cols, &count);
   if (status != MAT_OK)
-    append_status(&mat_statuses, status, "mat_mul's b's size overflows");
+    append_status(statuses, status, "mat_mul's b's size overflows");
 
   status = mat_element_count(out->rows, out->cols, &count);
   if (status != MAT_OK)
-    append_status(&mat_statuses, status, "mat_mul's out's size overflows");
+    append_status(statuses, status, "mat_mul's out's size overflows");
 
-  if (mat_statuses.size > 0)
-    return mat_statuses;
+  if (statuses->size > 0)
+    return;
 
   /* No output elements means no allocation or copying is needed. */
   if (count == 0)
-    return mat_statuses;
+    return;
 
   float *result = malloc(count * sizeof(*result));
   if (result == NULL) {
-    append_status(&mat_statuses, MAT_ERR_ALLOCATION,
+    append_status(statuses, MAT_ERR_ALLOCATION,
                   "mat_mul_could not allocate the result buffer");
-    return mat_statuses;
+    return;
   }
 
   size_t rows = (size_t)a->rows;
@@ -163,19 +158,19 @@ MatStatusArray mat_mul(Mat *a, Mat *b, Mat *out) {
         float product = a->data[i * inner + k] * b->data[k * cols + j];
 
         if (!isfinite(product)) {
-          append_status(&mat_statuses, MAT_ERR_NONFINITE,
+          append_status(statuses, MAT_ERR_NONFINITE,
                         "mat_mul_product is not finite");
           free(result);
-          return mat_statuses;
+          return;
         }
 
         sum += product;
 
         if (!isfinite(sum)) {
-          append_status(&mat_statuses, MAT_ERR_NONFINITE,
+          append_status(statuses, MAT_ERR_NONFINITE,
                         "mat_mul sum is not finite");
           free(result);
-          return mat_statuses;
+          return;
         }
       }
 
@@ -190,7 +185,7 @@ MatStatusArray mat_mul(Mat *a, Mat *b, Mat *out) {
   memcpy(out->data, result, count * sizeof(*result));
   free(result);
 
-  return mat_statuses;
+  return;
 }
 
 void mat_print(Mat *m) {
@@ -205,6 +200,11 @@ void mat_print(Mat *m) {
 
 void append_status(MatStatusArray *arr, MatStatusKind kind,
                    const char *operation) {
+  if (arr->size >= arr->capacity) {
+    fprintf(stderr, "Cannot append to array with size %zu and capacity %zu,\n",
+            arr->size, arr->capacity);
+    return;
+  }
   arr->statuses[arr->size++] = (MatStatus){
       .kind = kind,
       .operation = operation,
@@ -225,5 +225,7 @@ const char *mat_status_string(MatStatusKind s) {
     return "Non-finite error";
   case MAT_ERR_OVERFLOW:
     return "Overflow error";
+  default:
+    return "Unknown matrix status";
   };
 }

@@ -23,10 +23,16 @@ typedef struct {
   const char *operation;
 } MatStatus;
 
+#define MAT_MAX_ERRORS 6
+
 typedef struct {
   size_t size;
-  MatStatus *statuses;
+  size_t capacity;
+  MatStatus statuses[MAT_MAX_ERRORS];
 } MatStatusArray;
+
+/* Initialise a MatStatusArray. */
+MatStatusArray mat_status_array_init(void);
 
 /*
  * Initialise an empty handle, normally declared as
@@ -45,7 +51,7 @@ void mat_destroy(Mat *m);
  * Output may overlap either input.
  * On failure, out and its buffer are unchanged.
  */
-MatStatusArray mat_mul(Mat *a, Mat *b, Mat *out);
+void mat_mul(Mat *a, Mat *b, Mat *out, MatStatusArray *statuses);
 
 /* Requires a valid, initialised matrix. */
 void mat_print(Mat *m);
