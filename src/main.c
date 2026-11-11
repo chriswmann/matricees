@@ -10,27 +10,21 @@ int main(void) {
   Mat b = {0};
   Mat c = {0};
   int exit_code = EXIT_FAILURE;
-  MatStatusKind status_kind_a = mat_init(&a, 3, 2);
-  MatStatusKind status_kind_b = mat_init(&b, 2, 3);
-  MatStatusKind status_kind_c = mat_init(&c, 3, 3);
   MatStatusArray mat_statuses = mat_status_array_init();
-
-  if (status_kind_a != MAT_OK) {
-    MatStatus status = (MatStatus){
-        .kind = status_kind_a, .operation = mat_status_string(status_kind_a)};
-    mat_statuses.statuses[mat_statuses.size++] = status;
+  MatStatusKind status = mat_init(&a, 3, 2);
+  if (status != MAT_OK) {
+    append_status(&mat_statuses, status, mat_status_string(status));
   }
-
-  if (status_kind_b != MAT_OK) {
-    MatStatus status = (MatStatus){
-        .kind = status_kind_b, .operation = mat_status_string(status_kind_b)};
-    mat_statuses.statuses[mat_statuses.size++] = status;
+  status = mat_init(&b, 2, 3);
+  if (status != MAT_OK) {
+    append_status(&mat_statuses, status, mat_status_string(status));
   }
-
-  if (status_kind_c != MAT_OK) {
-    MatStatus status = (MatStatus){
-        .kind = status_kind_c, .operation = mat_status_string(status_kind_c)};
-    mat_statuses.statuses[mat_statuses.size++] = status;
+  status = mat_init(&c, 3, 3);
+  if (status != MAT_OK) {
+    append_status(&mat_statuses, status, mat_status_string(status));
+  }
+  if (status != MAT_OK) {
+    append_status(&mat_statuses, status, mat_status_string(status));
   }
 
   if (mat_statuses.size > 0)
