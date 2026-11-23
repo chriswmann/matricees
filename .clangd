@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - -std=c17
+    - -I/home/chris/personal/code/matricees/src
+    - -I/home/chris/personal/code/matricees/.deps/criterion-2.5.0/include
+---
+If:
+  PathMatch: src/.*\.h
+CompileFlags:
+  Add: [-x, c-header]
