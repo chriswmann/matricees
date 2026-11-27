@@ -1,0 +1,4 @@
+-std=c17
+-Isrc
+-Itests
+-I.deps/criterion-2.5.0/include
