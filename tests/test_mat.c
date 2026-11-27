@@ -35,8 +35,8 @@ Test(mat_mul, gives_expected_result_for_conformable_multiplication) {
   MatStatusKind b_init_status = mat_init(&b, 2, 2);
   cr_assert_eq(b_init_status, MAT_OK);
 
-  const float a_data[] = {2, 3};
-  const float b_data[] = {6, 4};
+  const float a_data[] = {2, 3, 1, 8};
+  const float b_data[] = {6, 4, 8, 6};
 
   memcpy(a.data, a_data, sizeof(a_data));
   memcpy(b.data, b_data, sizeof(b_data));
@@ -45,6 +45,13 @@ Test(mat_mul, gives_expected_result_for_conformable_multiplication) {
   mat_mul(&a, &b, &out, &mat_statuses);
 
   cr_assert_eq(mat_statuses.statuses[0].kind, MAT_OK);
+  const float out_data[] = {36, 26, 70, 52};
+
+  for (size_t i = 0; i < sizeof(out_data) / sizeof(out_data[0]); ++i) {
+    cr_expect_eq(out.data[i], out_data[i], "out[%zu][%zu]: expected %g, got %g",
+                 i / out.cols, i % out.cols, out_data[i], out.data[i]);
+  }
+
   mat_destroy(&out);
   mat_destroy(&a);
   mat_destroy(&b);
